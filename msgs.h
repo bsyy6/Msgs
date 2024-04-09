@@ -27,7 +27,8 @@ typedef enum {
 
 typedef struct {
     // any time a valid message is detected inside the buffer these values are updated.
-    volatile Buffer msgQueue; // handles the biggest message possible two times
+    volatile Buffer *msgQueue; // handles the biggest message possible two times
+    volatile Buffer *rawBuffer;
     uint8_t msgSize;
     uint8_t msgArrived;
     uint8_t startSearch;
@@ -42,7 +43,7 @@ typedef struct {
 
 
 
-msg initMsg(uint8_t *data, uint8_t size);
-void processMsg(msg *m, volatile Buffer *buffer);
+msg initMsg( volatile Buffer *msgs_buffer, volatile Buffer *raw_buffer);
+void processMsg(msg *m);
 
 #endif // MSGS_H

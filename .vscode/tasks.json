@@ -32,6 +32,7 @@
 				"-g",
 				"${file}",
 				"${fileDirname}\\msgs.c",  // Add this line,
+				"${fileDirname}\\include\\buffers\\buffers.c",  // Add this line,
 				"-I${workspaceFolder}\\include\\**",
 				"-o",
 				"${fileDirname}\\${fileBasenameNoExtension}.exe",
