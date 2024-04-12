@@ -3,8 +3,14 @@
 ## Overview
 The `msgs` package is a communication protocol designed specifically for embedded systems. It provides a lightweight and efficient way to exchange messages between devices.
 
+### default message structure
+[`0xA1` `0xA2` `sizeOfPackage` `data` `0xA2` `0xA1`]
+
+This library checks the 0xA1 0xA2 flags, and the correct size of package, if the package is valid the data and its size are moved to an array of choice.
+The message is copied to msgOutput and its size is saved in m.msgDataSize.
+
 ## dependencies
-The package depends on `buffer.h` library found here.
+The package depends on `buffer.h` library [found here](https://github.com/bsyy6/buffers).
 
 ## how to use
 

@@ -48,6 +48,5 @@ int main() {
     
     getMsg(&M);
     getMsg(&M);
-    printf("Hello, World!");
     return 0;
 }
