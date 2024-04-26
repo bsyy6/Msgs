@@ -39,6 +39,7 @@ typedef struct {
     
     // private variables
     uint8_t msgSize;
+    uint8_t msgBytesLeft;
     uint8_t startSearch;
     State   state;
     State   prevState;
@@ -46,7 +47,6 @@ typedef struct {
     uint8_t prevByte;
     uint8_t size;
     uint8_t msgCount;
-    uint8_t partCount;
 }msg;
 
 

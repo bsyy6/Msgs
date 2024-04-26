@@ -1,5 +1,6 @@
 {
     "files.associations": {
-        "buffers.h": "c"
+        "buffers.h": "c",
+        "msgs.h": "c"
     }
 }
