@@ -54,7 +54,6 @@ void processMsg(msg *m){
                 }else{
                     m->msgSize = m->byte - (NUM_OF_FLAGS+NUM_OF_EXTRA_BYTES);
                     m->msgBytesLeft = m->msgSize;
-                    enq(&m->msgSize, m->msgIdx);
                     m->state = DATA;
                 }
                 break;
@@ -77,6 +76,7 @@ void processMsg(msg *m){
             case END2:
                 if(m->byte == secondEndFlag){
                     m->msgsAvailable++;
+                    enq(&m->msgSize, m->msgIdx);
                     removeBookmark(m->rawBuffer);
                     m->state = START1;
                 }else{
@@ -86,7 +86,6 @@ void processMsg(msg *m){
                 
             case ERROR:
                 if(m->prevState > 2){
-                    rollback(m->msgIdx, 1);
                     rollback(m->msgQueue, (m->msgSize-m->msgBytesLeft) );
                 }
                 if(findNextBookmark(m->rawBuffer)){
