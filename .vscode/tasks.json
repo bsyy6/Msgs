@@ -10,7 +10,7 @@
 				"-g",
 				"${file}",
 				"${fileDirname}\\msgs.c",
-				"-I${workspaceFolder}\\include\\**",
+				"-I${workspaceFolder}\\include\\buffers",
 				"-o",
 				"${fileDirname}\\${fileBasenameNoExtension}.exe"
 			],
@@ -33,7 +33,7 @@
 				"${file}",
 				"${fileDirname}\\msgs.c",  // Add this line,
 				"${fileDirname}\\include\\buffers\\buffers.c",  // Add this line,
-				"-I${workspaceFolder}\\include\\**",
+				"-I${workspaceFolder}\\include\\buffers",
 				"-o",
 				"${fileDirname}\\${fileBasenameNoExtension}.exe",
 				"&&",

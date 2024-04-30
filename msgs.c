@@ -1,112 +1,186 @@
+/* created by Waleed - 2024 
+    A simple message library that takes a buffer (check buffers.h) and processes the messages in it.
+    it discards any bytes that don't belong to a message.
+    keeps messages on the buffer and marks the start and end of each message.
+*/
+
 #include "msgs.h"
 #include "buffers.h"
 
-msg initMsg( volatile Buffer *msgs_buffer, volatile Buffer *raw_buffer, volatile Buffer *msgs_idxs, void *msgData){
+void processMsg(volatile Buffer *raw_buffer){
     
-    msg M;
-    M.rawBuffer = raw_buffer;
-    M.msgQueue = msgs_buffer;
-    M.msgIdx = msgs_idxs;
+    // Reads through the buffer: if a valid message is found it:
+    // [1] freezes its locaiton in the buffer so it is not overwritten.
+    // [2] stores the location of the message in the buffer->msgRanges
+    
+    // to retrieve the message, use the 
+    // void getMsg(volatile Buffer *buffer, uint8_t* msgOut); 
+    // it will copy the message to msgOut array and unfreeze the buffer to work as usual.
+    // you can check if messages are available by checking buffer->msgCount.
 
-    // where it outputs the message
-    M.msgData = msgData;
-    M.msgDataSize = 0;
-    M.msgsAvailable = 0;
+    
+    // message structure => [firstStartFlag,seocondStartFlag,Size,{DATA[]},firstEndFlag,firstStartFlag]
+    const uint8_t firstStartFlag = 0xA1;
+    const uint8_t secondStartFlag = 0xA2;
+    const uint8_t firstEndFlag = 0xA2;
+    const uint8_t secondEndFlag = 0xA1;
+    const uint8_t MAX_MSG_SIZE = 15;
+    const uint8_t MIN_MSG_SIZE = 7;
+    const uint8_t NUM_OF_FLAGS = 4;
 
-    // where it outputs the message
-    M.msgSize = 0;
-    M.msgBytesLeft = 0;
-    M.byte = 0;
-    M.prevByte = 0;
-    M.state = START1;
-    M.prevState = START1;
-    return M;
-}
+    static uint8_t byte;
+    static State state = START1;
+    static uint8_t msgBytesLeft = 0;
 
-
-void processMsg(msg *m){
-    if(m->rawBuffer->isEmpty){
+    if(raw_buffer->isEmpty){
         return;
     }
-    // update history
-    m->prevByte  = m->byte;
-    m->prevState = m->state;
-    while(!m->rawBuffer->isEmpty){
-        deq(&m->byte,m->rawBuffer);
-        switch (m->state){
+    while(!raw_buffer->isEmpty){
+        deq(&byte,raw_buffer);
+        switch (state){
             case START1:
-                if(m->byte == firstStartFlag){
-                    m->state = START2;
-                    m->msgBytesLeft = 0;
-                    setBookmark(m->rawBuffer);
+                if(byte == firstStartFlag){
+                    state = START2;
+                    msgBytesLeft = 0;
+                    setMsgStart(raw_buffer);
                 }
                 break;
             case START2:
-                if(m->byte == secondStartFlag){
-                    m->state = SIZE;
+                if(byte == secondStartFlag){
+                    state = SIZE;
                 }else{
-                    m->state = ERROR;
+                    state = ERROR;
                 }
                 break;
             case SIZE:
-                if(m->byte > MAX_MSG_SIZE || m->byte < MIN_MSG_SIZE){
-                    m->state = ERROR;
+                if(byte > MAX_MSG_SIZE || byte < MIN_MSG_SIZE){
+                    state = ERROR;
                 }else{
-                    m->msgSize = m->byte - (NUM_OF_FLAGS+NUM_OF_EXTRA_BYTES);
-                    m->msgBytesLeft = m->msgSize;
-                    m->state = DATA;
+                    msgBytesLeft = byte - (NUM_OF_FLAGS+1);// +1 for size byte
+                    state = DATA;
                 }
                 break;
             case DATA:
-                // messageStart 
-                enq(&m->byte,m->msgQueue);  // add the byte to the message buffer
-                m->msgBytesLeft--; 
-                if (m->msgBytesLeft == 0){
-                    m->state = END1;
+                msgBytesLeft--; 
+                if (msgBytesLeft == 0){
+                    state = END1;
                 }
                 break;
-
             case END1:
-                if(m->byte == firstEndFlag){
-                    m->state = END2;
+                if(byte == firstEndFlag){
+                    state = END2;
                 }else{
-                    m->state = ERROR;
+                    state = ERROR;
                 }
                 break;
             case END2:
-                if(m->byte == secondEndFlag){
-                    m->msgsAvailable++;
-                    enq(&m->msgSize, m->msgIdx);
-                    removeBookmark(m->rawBuffer);
-                    m->state = START1;
+                if(byte == secondEndFlag){
+                    markMsg(raw_buffer);
+                    state = START1;
                 }else{
-                    m->state = ERROR;
+                    state = ERROR;
                 }
                 break;
                 
             case ERROR:
-                if(m->prevState > 2){
-                    rollback(m->msgQueue, (m->msgSize-m->msgBytesLeft) );
-                }
-                if(findNextBookmark(m->rawBuffer)){
-                    m->state = START2;
-                    m->prevState = START1;
-                    m->byte = firstStartFlag;
-                    jumpToBookmark(m->rawBuffer);
+                if(findNextMsgStart(raw_buffer)){
+                    state = START2;
+                    byte = firstStartFlag;
+                    jumpToMsgStart(raw_buffer);
                 }else{
-                    removeBookmark(m->rawBuffer);
-                    m->prevState = START1;
-                    m->state = START1;
+                    removeMsgStart(raw_buffer); // free up the buffer for overwrites.
+                    state = START1;
                 }
                 break;
         }   
     }
 }
 
-void getMsg(msg *m){
-    if(m->msgsAvailable > 0){
-        deq(&(m->msgDataSize), m->msgIdx);
-        nDeq(m->msgData,m->msgQueue,m->msgDataSize);
-        m->msgsAvailable--;
+void processMsgBLuetooth(volatile Buffer *raw_buffer){
+    
+    // Reads through the buffer: if a valid message is found it:
+    // [1] freezes its locaiton in the buffer so it is not overwritten.
+    // [2] stores the location of the message in the buffer->msgRanges
+    
+    // to retrieve the message, use the 
+    // void getMsg(volatile Buffer *buffer, uint8_t* msgOut); 
+    // it will copy the message to msgOut array and unfreeze the buffer to work as usual.
+    // you can check if messages are available by checking buffer->msgCount.
+    
+    
+    // message structure => [firstStartFlag,seocondStartFlag,Size,{DATA[]},firstEndFlag,firstStartFlag]
+    const uint8_t firstStartFlag = 0xA1;
+    const uint8_t secondStartFlag = 0xA2;
+    const uint8_t firstEndFlag = 0xA2;
+    const uint8_t secondEndFlag = 0xA1;
+    const uint8_t MAX_MSG_SIZE = 15;
+    const uint8_t MIN_MSG_SIZE = 7;
+    const uint8_t NUM_OF_FLAGS = 4;
+
+    static uint8_t byte;
+    static State state = START1;
+    static uint8_t msgBytesLeft = 0;
+
+    if(raw_buffer->isEmpty){
+        return;
+    }
+    while(!raw_buffer->isEmpty){
+        deq(&byte,raw_buffer);
+        switch (state){
+            case START1:
+                if(byte == firstStartFlag){
+                    state = START2;
+                    msgBytesLeft = 0;
+                    setMsgStart(raw_buffer);
+                }
+                break;
+            case START2:
+                if(byte == secondStartFlag){
+                    state = SIZE;
+                }else{
+                    state = ERROR;
+                }
+                break;
+            case SIZE:
+                if(byte > MAX_MSG_SIZE || byte < MIN_MSG_SIZE){
+                    state = ERROR;
+                }else{
+                    msgBytesLeft = byte - (NUM_OF_FLAGS+1);// +1 for size byte
+                    state = DATA;
+                }
+                break;
+            case DATA:
+                msgBytesLeft--; 
+                if (msgBytesLeft == 0){
+                    state = END1;
+                }
+                break;
+            case END1:
+                if(byte == firstEndFlag){
+                    state = END2;
+                }else{
+                    state = ERROR;
+                }
+                break;
+            case END2:
+                if(byte == secondEndFlag){
+                    markMsg(raw_buffer);
+                    state = START1;
+                }else{
+                    state = ERROR;
+                }
+                break;
+                
+            case ERROR:
+                if(findNextMsgStart(raw_buffer)){
+                    state = START2;
+                    byte = firstStartFlag;
+                    jumpToMsgStart(raw_buffer);
+                }else{
+                    removeMsgStart(raw_buffer); // free up the buffer for overwrites.
+                    state = START1;
+                }
+                break;
+        }   
     }
 }
