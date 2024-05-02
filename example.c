@@ -8,7 +8,7 @@ uint8_t msgSize = 0;
 uint8_t raw_buffer1[12];
 
 uint8_t msgs_idxs[3];
-uint8_t msgOutput[10];
+uint8_t msgOutput[12];
 
 volatile Buffer rawBuffer; // buffer object
 volatile Buffer messageBuffer; // message object
@@ -18,17 +18,17 @@ volatile Buffer msgsIdx; // message index object
 uint8_t msgs_buffer = 0;
 uint8_t U1RXREG[14] = { 161, 162, 6, 1, 162, 161, 242, 161,  // wrong A2
                         162, 7, 2 ,5, 162, 161}; // wrong A1
+//uint8_t U1RXREG[14] = {0x02, 0x50, 0x07, 0x00, 0x00, 0x55, 0x00, 0x00, 0xDA, 0x18, 0x00, 0xC2} ; 
 
 //uint8_t U1RXREG[6] = { 161, 162, 6, 241, 162, 161}; // correct
 
 uint8_t dataPoint = 0xA; // RXREG
 
-int main() {
-    
+int main() { 
     //[1] raw data buffer
-    rawBuffer = initBuffer(raw_buffer1,12);
+    rawBuffer = initBuffer(raw_buffer1,14);
 
-    //[4] new data comes to raw buffer
+    // [4] new data comes to raw buffer
     int i =0; 
     for (i = 0; i<16;i++)
     {
@@ -39,7 +39,7 @@ int main() {
             processMsg(&rawBuffer);
         }
     }
-    while(rawBuffer.msgCount>0){
+    if(rawBuffer.msgCount>0){
         getMsg(&rawBuffer,msgOutput,&msgSize);
     }
     return 0;

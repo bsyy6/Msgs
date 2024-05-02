@@ -18,6 +18,15 @@ void processMsg(volatile Buffer *raw_buffer){
     // it will copy the message to msgOut array and unfreeze the buffer to work as usual.
     // you can check if messages are available by checking buffer->msgCount.
 
+    typedef enum {
+        START1, // waiting for first flag
+        START2, // waiting for second flag       
+        SIZE, // checking size
+        DATA, // getting data
+        END1,
+        END2,
+        ERROR, // error
+    } State;
     
     // message structure => [firstStartFlag,seocondStartFlag,Size,{DATA[]},firstEndFlag,firstStartFlag]
     const uint8_t firstStartFlag = 0xA1;
@@ -96,7 +105,24 @@ void processMsg(volatile Buffer *raw_buffer){
     }
 }
 
-void processMsgBLuetooth(volatile Buffer *raw_buffer){
+
+uint8_t calcCS_buffer(Buffer* buffer, uint8_t size){
+    // calculates the checksum of size bytes in the buffer
+    // starting from tail positon to size.
+    if(size > howMuchData(buffer)){
+        return 0;
+    }
+    
+    uint8_t cs = 0;
+    uint8_t b = 0;
+    for(uint8_t i = 0; i < size; i++){
+        deq(&b, buffer);
+        cs^=b;
+    }
+    return cs;
+}
+
+void processMsgBluetooth(volatile Buffer *raw_buffer, uint8_t secondStartFlag){
     
     // Reads through the buffer: if a valid message is found it:
     // [1] freezes its locaiton in the buffer so it is not overwritten.
@@ -109,17 +135,28 @@ void processMsgBLuetooth(volatile Buffer *raw_buffer){
     
     
     // message structure => [firstStartFlag,seocondStartFlag,Size,{DATA[]},firstEndFlag,firstStartFlag]
-    const uint8_t firstStartFlag = 0xA1;
-    const uint8_t secondStartFlag = 0xA2;
-    const uint8_t firstEndFlag = 0xA2;
-    const uint8_t secondEndFlag = 0xA1;
+    
+    typedef enum {
+        START1, // waiting for first flag
+        START2, // waiting for second flag       
+        SIZE1, // checking BT_size
+        SIZE2, // checking BT_size
+        DATA, // getting data
+        CS,   // waiting for checksum
+        ERROR, // error
+    } State_BT; 
+
+    const uint8_t firstStartFlag = 0x02;
     const uint8_t MAX_MSG_SIZE = 15;
     const uint8_t MIN_MSG_SIZE = 7;
-    const uint8_t NUM_OF_FLAGS = 4;
+
 
     static uint8_t byte;
-    static State state = START1;
-    static uint8_t msgBytesLeft = 0;
+    static State_BT state = START1; // bluetooth message states
+    static uint16_t msgBytesLeft = 0;
+    static uint16_t msgSize = 0;
+    static uint8_t checkSumFlag = 0x00;
+
 
     if(raw_buffer->isEmpty){
         return;
@@ -136,41 +173,43 @@ void processMsgBLuetooth(volatile Buffer *raw_buffer){
                 break;
             case START2:
                 if(byte == secondStartFlag){
-                    state = SIZE;
+                    state = SIZE1;
                 }else{
                     state = ERROR;
                 }
                 break;
-            case SIZE:
-                if(byte > MAX_MSG_SIZE || byte < MIN_MSG_SIZE){
+            case SIZE1:
+                // the LSB of the size
+                msgBytesLeft = byte;
+                msgSize = msgBytesLeft; // used later to calcualte the checksum
+                state = SIZE2;
+                break;
+            case SIZE2:
+                // the MSB of the size
+                msgBytesLeft |= (byte << 8);
+
+                if(msgBytesLeft > MAX_MSG_SIZE || msgBytesLeft < MIN_MSG_SIZE){
                     state = ERROR;
                 }else{
-                    msgBytesLeft = byte - (NUM_OF_FLAGS+1);// +1 for size byte
                     state = DATA;
                 }
                 break;
-            case DATA:
+            case DATA: // aka payload
                 msgBytesLeft--; 
                 if (msgBytesLeft == 0){
-                    state = END1;
+                    state = CS;
+                    // jump back to the start
+                    jumpToMsgStart(raw_buffer);
+                    checkSumFlag = calcCS_buffer(raw_buffer, msgSize+4); // +4 for the flags and size bytes
                 }
                 break;
-            case END1:
-                if(byte == firstEndFlag){
-                    state = END2;
-                }else{
-                    state = ERROR;
-                }
-                break;
-            case END2:
-                if(byte == secondEndFlag){
+            case CS:
+                if(byte == checkSumFlag){
                     markMsg(raw_buffer);
                     state = START1;
                 }else{
                     state = ERROR;
                 }
-                break;
-                
             case ERROR:
                 if(findNextMsgStart(raw_buffer)){
                     state = START2;
