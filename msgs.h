@@ -3,7 +3,6 @@
 
 #include "buffers.h"
 
-#define MAX_MSG_IN_BUFFER 2 // maximum number of messages in buffer
 
 // message structure => [firstStartFlag,secondStartFlag,Size,{DATA[]},firstEndFlag,secondEndFlag]
 void processMsg(volatile Buffer *raw_buffer);

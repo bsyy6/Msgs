@@ -220,3 +220,11 @@ uint8_t calcCS_buffer(Buffer* buffer, uint8_t size){
     }
     return cs;
 }
+
+uint8_t calcCS_array(uint8_t* arr, uint8_t n){
+    uint8_t checksum = 0;
+    for (uint8_t i = 0; i < n; i++) {
+        checksum ^= arr[i];
+    }
+    return(checksum);
+}
