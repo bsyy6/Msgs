@@ -33,9 +33,9 @@ void processMsg(volatile Buffer *raw_buffer){
     const uint8_t secondStartFlag = 0xA2;
     const uint8_t firstEndFlag = 0xA2;
     const uint8_t secondEndFlag = 0xA1;
+    const uint8_t MSG_ADDED_BYTES = 5; // 2 start flags + 2 end flags + 1 size byte
     const uint8_t MAX_MSG_SIZE = 15;
-    const uint8_t MIN_MSG_SIZE = 7;
-    const uint8_t NUM_OF_FLAGS = 4;
+    const uint8_t MIN_MSG_SIZE = 6;
 
     static uint8_t byte;
     static State state = START1;
@@ -65,7 +65,7 @@ void processMsg(volatile Buffer *raw_buffer){
                 if(byte > MAX_MSG_SIZE || byte < MIN_MSG_SIZE){
                     state = ERROR;
                 }else{
-                    msgBytesLeft = byte - (NUM_OF_FLAGS+1);// +1 for size byte
+                    msgBytesLeft = byte - (MSG_ADDED_BYTES);
                     state = DATA;
                 }
                 break;
@@ -90,40 +90,20 @@ void processMsg(volatile Buffer *raw_buffer){
                     state = ERROR;
                 }
                 break;
-                
-            case ERROR:
-                if(findNextMsgStart(raw_buffer)){
-                    state = START2;
-                    byte = firstStartFlag;
-                    jumpToMsgStart(raw_buffer);
-                }else{
-                    removeMsgStart(raw_buffer); // free up the buffer for overwrites.
-                    state = START1;
-                }
-                break;
+        }
+        
+        if(state == ERROR){
+            if(findNextMsgStart(raw_buffer)){
+                jumpToMsgStart(raw_buffer);
+            }else{
+                removeMsgStart(raw_buffer); // free up the buffer for overwrites.
+            }
+            state = START1;
         }   
     }
 }
 
-
-uint8_t calcCS_buffer(Buffer* buffer, uint8_t size){
-    // calculates the checksum of size bytes in the buffer
-    // starting from tail positon to size.
-    if(size > howMuchData(buffer)){
-        return 0;
-    }
-    
-    uint8_t cs = 0;
-    uint8_t b = 0;
-    for(uint8_t i = 0; i < size; i++){
-        deq(&b, buffer);
-        cs^=b;
-    }
-    return cs;
-}
-
 void processMsgBluetooth(volatile Buffer *raw_buffer, uint8_t secondStartFlag){
-    
     // Reads through the buffer: if a valid message is found it:
     // [1] freezes its locaiton in the buffer so it is not overwritten.
     // [2] stores the location of the message in the buffer->msgRanges
@@ -210,16 +190,33 @@ void processMsgBluetooth(volatile Buffer *raw_buffer, uint8_t secondStartFlag){
                 }else{
                     state = ERROR;
                 }
-            case ERROR:
-                if(findNextMsgStart(raw_buffer)){
-                    state = START2;
-                    byte = firstStartFlag;
-                    jumpToMsgStart(raw_buffer);
-                }else{
-                    removeMsgStart(raw_buffer); // free up the buffer for overwrites.
-                    state = START1;
-                }
                 break;
-        }   
+        }
+        
+        if(state == ERROR){
+            if(findNextMsgStart(raw_buffer)){
+                jumpToMsgStart(raw_buffer);
+            }else{
+                removeMsgStart(raw_buffer); // free up the buffer for overwrites.
+            }
+            state = START1;
+        }
+        
     }
+}
+
+uint8_t calcCS_buffer(Buffer* buffer, uint8_t size){
+    // calculates the checksum of size bytes in the buffer
+    // starting from tail positon to size.
+    if(size > howMuchData(buffer)){
+        return 0;
+    }
+    
+    uint8_t cs = 0;
+    uint8_t b = 0;
+    for(uint8_t i = 0; i < size; i++){
+        deq(&b, buffer);
+        cs^=b;
+    }
+    return cs;
 }
