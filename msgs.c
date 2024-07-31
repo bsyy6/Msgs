@@ -5,77 +5,8 @@
 */
 
 #include "msgs.h"
-#include "buffers.h"
 
-
-Msg initMsg(uint8_t* msgArray, uint8_t* msgSize, uint8_t maxMsgs, uint8_t msgmaxsize){
-    Msg msg;
-    msg.msgArray = msgArray;
-    msg.msgSize = msgSize;
-    msg.msgToRead = 0;
-    msg.msgToWrite = 0;
-    msg.msgsAvailable = 0;
-    msg.maxMsgs = maxMsgs;
-    msg.msgmaxsize = msgmaxsize;
-    msg.isEmpty = true;
-    return msg;
-}
-// helper functions for circular buffers
-void copyRng(uint8_t* dest, uint8_t* src, uint8_t idxStart, uint8_t idxEnd, uint8_t arraySize){
-    bool normalOrder = idxEnd >= idxStart;
-    uint8_t sz = getRngSize(idxStart, idxEnd, arraySize);
-    if (normalOrder) {
-        // Message doesn't wrap around the end of the buffer
-        memcpy(dest, src +idxStart, sz);
-    } else {
-        // Message wraps around the end of the buffer
-        uint8_t firstPartSize = arraySize -idxStart;
-        // copy the start of the message
-        memcpy(dest, src + idxStart, firstPartSize);
-        // the rest of the message
-        memcpy(dest+firstPartSize, src,  idxEnd+1);
-    }
-    return;
-}
-uint8_t getRngSize(uint8_t idxStart, uint8_t idxEnd, uint8_t arraySize){
-    uint8_t sz;
-    bool normalOrder = idxEnd >= idxStart;
-    if (normalOrder) {
-        // Message doesn't wrap around the end of the buffer
-        sz = idxEnd - idxStart + 1;
-    } else {
-        // Message wraps around the end of the buffer
-        sz = (arraySize - idxStart) + (idxEnd + 1);
-    }
-    return sz;
-}
-
-void storeMsg(Msg* msg, uint8_t* src, uint8_t idxStart, uint8_t idxEnd, uint8_t arraySize){
-    // stores the message in the message buffer
-    // if the message buffer is full, it will overwrite the oldest message
-    if(msg->msgToWrite == msg->msgToRead && !msg->isEmpty){
-        return;
-    }
-    uint8_t sz = 0;
-    sz = getRngSize(idxStart, idxEnd, arraySize); // store its size
-    copyRng( msg->msgArray + (msg->msgToWrite*msg->msgmaxsize), src, idxStart, idxEnd, msg->msgmaxsize); // copy the message
-    memcpy( msg->msgSize + msg->msgToWrite, &sz ,1);     // store its size
-    msg->msgToWrite = msg->msgToWrite + 1 % msg->maxMsgs;
-    msg->msgsAvailable++;
-}
-
-void getMsg(Msg* msg, uint8_t* dest, uint8_t* sz){
-    // gets the oldest message in the message buffer
-    if(msg->msgsAvailable == 0){
-        return;
-    }
-    memcpy(dest ,msg->msgArray + (msg->msgToRead*msg->msgmaxsize), msg->msgSize[msg->msgToRead]); // copy the message
-    memcpy(sz,msg->msgSize + msg->msgToRead, 1);
-    msg->msgToRead = msg->msgToRead + 1 % msg->maxMsgs;
-    msg->msgsAvailable--;
-}
-
-void processMsg(Msg* msg ,volatile Buffer *raw_buffer){
+void processMsg(volatile Buffer *raw_buffer){
     
     // Reads through the buffer: if a valid message is found it:
     // [1] freezes its locaiton in the buffer so it is not overwritten.
@@ -120,6 +51,8 @@ void processMsg(Msg* msg ,volatile Buffer *raw_buffer){
                     state = START2;
                     msgBytesLeft = 0;
                     setMsgStart(raw_buffer);
+                }else{
+                    state = ERROR;
                 }
                 break;
             case START2:
@@ -152,12 +85,13 @@ void processMsg(Msg* msg ,volatile Buffer *raw_buffer){
                 break;
             case END2:
                 if(byte == secondEndFlag){
-                    markMsg(raw_buffer);
-                    uint8_t endIdx  = (raw_buffer->tail+ raw_buffer->arraySize)% (raw_buffer->arraySize+1);
-                    storeMsg(msg, raw_buffer->array, raw_buffer->msgStartIdx, endIdx, raw_buffer->arraySize);
+                    enqMsg(raw_buffer);
+                    state = START1;
                 }else{
                     state = ERROR;
                 }
+                break;
+            case ERROR:
                 break;
         }
         
@@ -172,7 +106,7 @@ void processMsg(Msg* msg ,volatile Buffer *raw_buffer){
     }
 }
 
-void processMsgBluetooth( Msg* msg, volatile Buffer *raw_buffer, uint8_t secondStartFlag){
+bool processMsgBluetooth(volatile Buffer *raw_buffer, uint8_t secondStartFlag){
     // Reads through the buffer: if a valid message is found it:
     // [1] freezes its locaiton in the buffer so it is not overwritten.
     // [2] stores the location of the message in the buffer->msgRanges
@@ -182,8 +116,9 @@ void processMsgBluetooth( Msg* msg, volatile Buffer *raw_buffer, uint8_t secondS
     // it will copy the message to msgOut array and unfreeze the buffer to work as usual.
     // you can check if messages are available by checking buffer->msgCount.
     
+    // returns true if it gets a message.
     
-    // message structure => [firstStartFlag,seocondStartFlag,Size,{DATA[]},firstEndFlag,firstStartFlag]
+    // message structure => [firstStartFlag,seocondStartFlag,Size,{DATA[]},firstEndFlag,secondStartFlag]
     
     typedef enum {
         START1, // waiting for first flag
@@ -196,8 +131,8 @@ void processMsgBluetooth( Msg* msg, volatile Buffer *raw_buffer, uint8_t secondS
     } State_BT; 
 
     const uint8_t firstStartFlag = 0x02;
-    const uint8_t MAX_MSG_SIZE = 15;
-    const uint8_t MIN_MSG_SIZE = 7;
+    const uint8_t MAX_MSG_SIZE = 70;
+    const uint8_t MIN_MSG_SIZE = 1;
 
 
     static uint8_t byte;
@@ -208,7 +143,7 @@ void processMsgBluetooth( Msg* msg, volatile Buffer *raw_buffer, uint8_t secondS
 
 
     if(raw_buffer->isEmpty){
-        return;
+         return(false);
     }
     while(!raw_buffer->isEmpty){
         deq(&byte,raw_buffer);
@@ -218,6 +153,8 @@ void processMsgBluetooth( Msg* msg, volatile Buffer *raw_buffer, uint8_t secondS
                     state = START2;
                     msgBytesLeft = 0;
                     setMsgStart(raw_buffer);
+                }else{
+                    state = ERROR;
                 }
                 break;
             case START2:
@@ -254,11 +191,14 @@ void processMsgBluetooth( Msg* msg, volatile Buffer *raw_buffer, uint8_t secondS
                 break;
             case CS:
                 if(byte == checkSumFlag){
-                    markMsg(raw_buffer);
+                    enqMsg(raw_buffer);
                     state = START1;
+                    return(true);
                 }else{
                     state = ERROR;
                 }
+                break;
+            case ERROR:
                 break;
         }
         
@@ -270,11 +210,10 @@ void processMsgBluetooth( Msg* msg, volatile Buffer *raw_buffer, uint8_t secondS
             }
             state = START1;
         }
-        
     }
+    return(false);
 }
 
-// helper functions for circular buffers
 uint8_t calcCS_buffer(volatile Buffer* buffer, uint8_t size){
     // calculates the checksum of size bytes in the buffer
     // starting from tail positon to size.
@@ -290,6 +229,7 @@ uint8_t calcCS_buffer(volatile Buffer* buffer, uint8_t size){
     }
     return cs;
 }
+
 uint8_t calcCS_array(uint8_t* arr, uint8_t n){
     uint8_t checksum = 0;
     for (uint8_t i = 0; i < n; i++) {
