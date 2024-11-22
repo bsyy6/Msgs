@@ -1,3 +1,4 @@
 example.exe
 include/buffers/** 
 buffers
+.vscode/**
