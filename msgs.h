@@ -30,7 +30,7 @@ typedef struct {
   uint8_t localTemp; // a tempvariable used for each validation function
   uint8_t nStartFlags;
   uint8_t nStartFlagread;
-  validOutput (*validationFunction[N_MSG_PARTS])(uint8_t ,uint8_t*,uint8_t); // Array of function pointers
+  validOutput (*validationFunction[N_MSG_PARTS])(uint8_t ,const uint8_t*,const uint8_t,Buffer*); // Array of function pointers
   bool isValidationFunction[N_MSG_PARTS];
 }Msg;
 
@@ -38,15 +38,15 @@ typedef struct {
 void initMsg(Msg* msg, Buffer* raw_buffer);
 validOutput checkByte(Msg* msg);
 
-bool addValidation(Msg* msg, uint8_t* startFlag, uint8_t startFlagSize);
-bool addValidationFunction(Msg* msg, validOutput (*validationFunction)(uint8_t ,uint8_t*,uint8_t));
+bool addValidation(Msg* msg, uint8_t* Flag, uint8_t FlagSize);
+bool addValidationFunction(Msg* msg, validOutput (*validationFunction)(uint8_t ,const uint8_t*,const uint8_t,Buffer*));
 
 void printMsgForm(Msg* msg);
 
 void processMsg(Msg* msg);
 bool checkPartN(Msg* msg, uint8_t byte, uint8_t N);
 
-validOutput validateByte(uint8_t byte,uint8_t*startFlag,uint8_t startFlagSize);
+validOutput validateByte(uint8_t byte, const uint8_t*startFlag, const uint8_t startFlagSize, Buffer* buffer);
 
 #endif // MSGS_H
 /*

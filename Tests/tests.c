@@ -23,7 +23,7 @@ uint8_t dataPoint = 0xA;
 
 
 int main(){
-
+    runTest_2(test2,sizeof(test2)/sizeof(test2[0]));
 }
 
 
@@ -50,9 +50,10 @@ uint8_t runTest_2(uint8_t* test, uint8_t sizeTest){
     initMsg(&msg, &b_buffer);
 
     uint8_t startFlag[2] = {161,162};
-
+    uint8_t endFlag[2] = {162,161};
+    
     addValidation(&msg, startFlag, 2);
-    addValidationFunction(&msg, myValidation);
+    addValidation(&msg, endFlag, 2);
 
     for (int i = 0; i < sizeTest; i++){
         enq(&test[i],&b_buffer);

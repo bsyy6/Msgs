@@ -5,8 +5,7 @@
 */
 
 #include "msgs.h"
-#include <stdbool.h>
-#include <stdint.h>
+
 
 void processMsg(Msg* msg){
     
@@ -51,10 +50,10 @@ void processMsg(Msg* msg){
         
         // directly enforce error msg->state handling
         if(msg->state == ERROR){
-            if(findNextMsgStart(raw_buffer)){
-                jumpToMsgStart(raw_buffer);
+            if(findNextMsgStart(msg->raw_buffer)){
+                jumpToMsgStart(msg->raw_buffer);
             }else{
-                removeMsgStart(raw_buffer); // free up the buffer for overwrites.
+                removeMsgStart(msg->raw_buffer); // free up the buffer for overwrites.
             }
             msg->state = START1;
         }   
@@ -64,7 +63,7 @@ void processMsg(Msg* msg){
 
 bool addValidation(Msg* msg, uint8_t* startFlag, uint8_t startFlagSize){
     if(msg->nStartFlags < N_MSG_PARTS){
-        addValidationFunction(msg, validateBytes);
+        addValidationFunction(msg, validateByte);
         msg->isCustomValidation[msg->nStartFlags] = false;
         msg->startFlags[msg->nStartFlags] = startFlag;
         msg->startFlagsSize[msg->nStartFlags] = startFlagSize;
@@ -79,16 +78,18 @@ validOutput checkByte(Msg* msg){
 
     // run the validation funciton
     if(msg->isCustomValidation[msg->nStartFlagread]){
-       output = msg->validationFunction[msg->nStartFlagread](msg->byte,msg->startFlags[msg->nStartFlagread],msg->startFlagsSize[msg->nStartFlagread]);
+       output = msg->validationFunction[msg->nStartFlagread](msg->byte,msg->startFlags[msg->nStartFlagread],msg->startFlagsSize[msg->nStartFlagread], msg->raw_buffer);
     }else{
-        output = validateByte(msg->byte, msg->startFlags[msg->nStartFlagread],msg->startFlagsSize[msg->nStartFlagread]);
+        output = validateByte(msg->byte, msg->startFlags[msg->nStartFlagread],msg->startFlagsSize[msg->nStartFlagread],msg->raw_buffer);
     }
 
-    if(output ==  OK_move_to_next)
+    if(output ==  OK_move_to_next){
         msg->nStartFlagread++;
         if(msg->nStartFlagread == msg->nStartFlags){
-            msg->state = END1;
+            msg->state = END1; // passed all validation functions!
         }
+    }
+
     if(output == NOT_OK){
         msg->state = ERROR;
     }
@@ -96,10 +97,13 @@ validOutput checkByte(Msg* msg){
 
 }
 
-validOutput validateByte(uint8_t byte,uint8_t* startFlag, uint8_t startFlagsSize){
+/** @brief default validation function, goes through flag array and returns ok_move_to_next validation if 
+* if the flag was found in the byte sequences.
+ */
+validOutput validateByte(uint8_t byte,uint8_t* flag, uint8_t flagSize, Buffer* buffer){
     static uint8_t idx = 0;
-    if(byte == startFlag[idx]){
-        if(idx == startFlagsSize-1){
+    if(byte == flag[idx]){
+        if(idx == flagSize-1){
             idx = 0;
             return OK_move_to_next;
         }
@@ -111,7 +115,7 @@ validOutput validateByte(uint8_t byte,uint8_t* startFlag, uint8_t startFlagsSize
 }
 
 // TODO
-bool addValidationFunction(Msg* msg, validOutput (*validationFunction)(uint8_t,uint8_t*,uint8_t)){
+bool addValidationFunction(Msg* msg, validOutput (*validationFunction)(uint8_t byte, const uint8_t* flag,const uint8_t flagSize,Buffer* buffer)){
     if(msg->nStartFlags < N_MSG_PARTS){
         msg->validationFunction[msg->nStartFlags] = validationFunction;
         msg->nStartFlags++;
