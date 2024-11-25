@@ -1,8 +1,7 @@
-#include <cinttypes>
 #include <stdio.h>
 #include <stdint.h>
-#include "../msgs.h"
-#include "../include/buffers/buffers.h"
+#include "msgs.h"
+#include "buffers/buffers.h"
 
 
 // test strings

@@ -1,0 +1,25 @@
+{
+    "configurations": [
+        {
+            "name": "Clangd for LSP",
+            "intelliSenseMode": "disabled",
+            "includePath": [
+                "${workspaceFolder}/external",
+                "${workspaceFolder}/include",
+                "${workspaceFolder}/Tests"
+            ],
+            "browse": {
+                "path": [
+                    "${workspaceFolder}/external",
+                    "${workspaceFolder}/include",
+                    "${workspaceFolder}/Tests"
+                ],
+                "limitSymbolsToIncludedHeaders": true
+            },
+            "compilerPath": "C:\\msys64\\mingw64\\bin\\gcc.exe",
+            "cStandard": "c17",
+            "cppStandard": "c++20"
+        }
+    ],
+    "version": 4
+}

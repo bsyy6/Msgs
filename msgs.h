@@ -1,7 +1,7 @@
 #ifndef MSGS_H
 #define MSGS_H
 
-#include "include/buffers/buffers.h"
+#include "buffers/buffers.h"
 #include <stdbool.h>
 #include <stdint.h>
 

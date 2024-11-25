@@ -25,20 +25,17 @@
 		},
 		{
 			"type": "cppbuild",
-			"label": "C/C++: gcc.exe build active file AND RUN",
+			"label": "C/C++: gcc.exe build active file",
 			"command": "C:\\msys64\\mingw64\\bin\\gcc.exe",
 			"args": [
 				"-fdiagnostics-color=always",
 				"-g",
-				"${file}",
-				"${fileDirname}\\msgs.c",  // Add this line,
-				"${fileDirname}\\include\\buffers\\buffers.c",  // Add this line,
+				"${workspaceFolder}\\msgs.c",  // Add this line,
+				"${workspaceFolder}\\external\\buffers\\buffers.c",  // Add this line,
 				"-I",
-				"${workspaceFolder}\\include\\buffers",
+				"${workspaceFolder}\\external",
 				"-o",
-				"${fileDirname}\\${fileBasenameNoExtension}.exe",
-				"&&",
-				"${fileDirname}\\${fileBasenameNoExtension}.exe"
+				"${fileDirname}\\build\\${fileBasenameNoExtension}.exe",
 			],
 			"options": {
 				"cwd": "${fileDirname}"
@@ -51,6 +48,25 @@
 				"isDefault": true
 			},
 			"detail": "compiler: C:\\msys64\\mingw64\\bin\\gcc.exe"			
+		},
+		{
+			"label": "Compile buffers.c",
+			"type": "shell",
+			"command": "gcc",
+			"args": [
+				"-fdiagnostics-color=always",
+				"-c",
+				".\\external\\buffers\\buffers.c",
+				"-I.\\external",
+				"-o",
+				".\\build\\buffers.o"
+			],
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			"problemMatcher": ["$gcc"],
+			"detail": "Compiling buffers.c using gcc"
 		}
 		
 	]
