@@ -59,7 +59,6 @@ uint8_t runTest_2(uint8_t* test, uint8_t sizeTest){
         processMsg(&msg);   
     }
 
-     
     return msg.raw_buffer->msgCount;
 }
 

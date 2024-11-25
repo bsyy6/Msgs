@@ -16,7 +16,9 @@ typedef enum {
 
 typedef enum {
     NOT_OK,
+    NOT_OK_GO_TO_ERROR,
     OK,
+    OK_START_TRACKING,
     OK_move_to_next,
 }validOutput;
 
@@ -40,13 +42,14 @@ validOutput checkByte(Msg* msg);
 
 bool addValidation(Msg* msg, uint8_t* Flag, uint8_t FlagSize);
 bool addValidationFunction(Msg* msg, validOutput (*validationFunction)(uint8_t ,const uint8_t*,const uint8_t,Buffer*));
+bool addMsgHolder(Msg* msg, uint8_t maxMsgSize);
 
 void printMsgForm(Msg* msg);
 
 void processMsg(Msg* msg);
 bool checkPartN(Msg* msg, uint8_t byte, uint8_t N);
 
-validOutput validateByte(uint8_t byte, const uint8_t*startFlag, const uint8_t startFlagSize, Buffer* buffer);
+validOutput validateByte(uint8_t byte,const uint8_t* flag, const uint8_t flagSize, Buffer* buffer);
 
 #endif // MSGS_H
 /*

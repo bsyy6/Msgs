@@ -28,19 +28,31 @@ void processMsg(Msg* msg){
 
         switch (msg->state){
             case START1:
-                if(output == OK_move_to_next){
-                    setMsgStart(msg->raw_buffer);
+                if(output == OK_START_TRACKING){
+                    if(!msg->raw_buffer->Blocked){
+                        setMsgStart(msg->raw_buffer);
+                    }             
+                }else if(output == OK_move_to_next){ 
                     msg->state = CONT;
+                }else if(output == NOT_OK_GO_TO_ERROR){
+                    msg->state = ERROR;
                 }
+                
                 break; 
             case CONT:
-                // do nothing
+                if (output == OK_move_to_next){
+                    msg->state = END1;
+                }else if (output == NOT_OK_GO_TO_ERROR){
+                    msg->state = ERROR;
+                }
                 break;            
             case END1:
                 if(output == OK_move_to_next){
                     enqMsg(msg->raw_buffer);
                     //reset msg->state to get next message
                     msg->state = START1;
+                }else if(output == NOT_OK_GO_TO_ERROR){
+                    msg->state = ERROR;
                 }
                 break;
             case ERROR:
@@ -69,12 +81,13 @@ void initMsg(Msg* msg, Buffer* raw_buffer){
 
 bool addValidation(Msg* msg, uint8_t* startFlag, uint8_t startFlagSize){
     if(msg->nStartFlags < N_MSG_PARTS){
-        addValidationFunction(msg, validateByte);
-        msg->isCustomValidation[msg->nStartFlags] = false;
-        msg->startFlags[msg->nStartFlags] = startFlag;
-        msg->startFlagsSize[msg->nStartFlags] = startFlagSize;
-        msg->nStartFlags++;
-        return true;
+        if( addValidationFunction(msg, validateByte)){;
+            msg->isCustomValidation[msg->nStartFlags] = false;
+            msg->startFlags[msg->nStartFlags] = startFlag;
+            msg->startFlagsSize[msg->nStartFlags] = startFlagSize;
+            msg->nStartFlags++;
+            return true;
+        }
     }
     return false;
 }
@@ -106,27 +119,54 @@ validOutput checkByte(Msg* msg){
 /** @brief default validation function, goes through flag array and returns ok_move_to_next validation if 
 * if the flag was found in the byte sequences.
  */
-// validOutput validateByte(uint8_t byte,uint8_t* flag, uint8_t flagSize, Buffer* buffer){
-//     static uint8_t idx = 0;
-//     if(byte == flag[idx]){
-//         if(idx == flagSize-1){
-//             idx = 0;
-//             return OK_move_to_next;
-//         }
-//         idx++;
-//         return OK;
-//     }
-//     idx= 0;
-//     return NOT_OK;
-// }
+validOutput validateByte(uint8_t byte,const uint8_t* flag, const uint8_t flagSize, Buffer* buffer){
+    static uint8_t idx = 0;
+    validOutput output = OK;
+
+    // correct flag
+    if(byte == flag[idx] ){
+        output = (idx == 0) ? OK_START_TRACKING:OK;
+        idx++;
+    }else if (idx > 0){
+        idx = 0;
+        output = NOT_OK_GO_TO_ERROR;
+    }
+    
+    // all flag is ok
+    if(idx == flagSize){
+        idx = 0;
+        output = OK_move_to_next;
+    }
+
+    return output;
+}
 
 // TODO
 bool addValidationFunction(Msg* msg, validOutput (*validationFunction)(uint8_t byte, const uint8_t* flag,const uint8_t flagSize,Buffer* buffer)){
     if(msg->nStartFlags < N_MSG_PARTS){
         msg->validationFunction[msg->nStartFlags] = validationFunction;
-        msg->nStartFlags++;
         return true;
     }
     return false;
 }
 
+validOutput addLastValidation(uint8_t byte,const uint8_t* flag, const uint8_t flagSize, Buffer* buffer){
+    validOutput output = OK;
+    static uint8_t idx = 0;
+
+    // correct flag
+    if(byte == flag[idx]){
+        output = (idx == 0) ? OK_START_TRACKING:OK;
+        idx++;
+    }else{
+        idx = 0;
+    }
+    
+    // all flag is ok
+    if(idx == flagSize){
+        idx = 0;
+        output = OK_move_to_next;
+    }
+
+    return output;
+}

@@ -4,15 +4,15 @@
 		{
 			"type": "cppbuild",
 			"label": "C/C++: gcc.exe build active file",
-			"command": "C:\\msys64\\mingw64\\bin\\gcc.exe",
+			"command": "C:/msys64/mingw64/bin/gcc.exe",
 			"args": [
 				"-fdiagnostics-color=always",
 				"-g",
 				"${file}",
-				"${fileDirname}\\msgs.c",
-				"-I${workspaceFolder}\\include\\buffers",
+				"${fileDirname}/msgs.c",
+				"-I${workspaceFolder}/include/buffers",
 				"-o",
-				"${fileDirname}\\${fileBasenameNoExtension}.exe"
+				"${fileDirname}/${fileBasenameNoExtension}.exe"
 			],
 			"options": {
 				"cwd": "${fileDirname}"
@@ -21,21 +21,21 @@
 				"$gcc"
 			],
 			"group": "build",
-			"detail": "compiler: C:\\msys64\\mingw64\\bin\\gcc.exe"
+			"detail": "compiler: C:/msys64/mingw64/bin/gcc.exe"
 		},
 		{
 			"type": "cppbuild",
 			"label": "C/C++: gcc.exe build active file",
-			"command": "C:\\msys64\\mingw64\\bin\\gcc.exe",
+			"command": "C:/msys64/mingw64/bin/gcc.exe",
 			"args": [
 				"-fdiagnostics-color=always",
 				"-g",
-				"${workspaceFolder}\\msgs.c",  // Add this line,
-				"${workspaceFolder}\\external\\buffers\\buffers.c",  // Add this line,
+				"${workspaceFolder}/msgs.c",  // Add this line,
+				"${workspaceFolder}/external/buffers/buffers.c",  // Add this line,
 				"-I",
-				"${workspaceFolder}\\external",
+				"${workspaceFolder}/external",
 				"-o",
-				"${fileDirname}\\build\\${fileBasenameNoExtension}.exe",
+				"${fileDirname}/build/${fileBasenameNoExtension}.exe",
 			],
 			"options": {
 				"cwd": "${fileDirname}"
@@ -45,29 +45,33 @@
 			],
 			"group": {
 				"kind": "build",
-				"isDefault": true
+				"isDefault": false
 			},
-			"detail": "compiler: C:\\msys64\\mingw64\\bin\\gcc.exe"			
+			"detail": "compiler: C:/msys64/mingw64/bin/gcc.exe"			
 		},
 		{
-			"label": "Compile buffers.c",
+			"label": "Build tests.c",
 			"type": "shell",
 			"command": "gcc",
 			"args": [
 				"-fdiagnostics-color=always",
-				"-c",
-				".\\external\\buffers\\buffers.c",
-				"-I.\\external",
+				"-g",
+				"./msgs.c",
+				"./external/buffers/buffers.c",
+				"./Tests/tests.c",
+				"-I./external",
+				"-I./include",
 				"-o",
-				".\\build\\buffers.o"
+				"./build/tests.exe"
 			],
 			"group": {
 				"kind": "build",
 				"isDefault": true
 			},
 			"problemMatcher": ["$gcc"],
-			"detail": "Compiling buffers.c using gcc"
-		}
+			"detail": "Compiling tests.c using gcc"
+		},
+
 		
 	]
 }
