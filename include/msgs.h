@@ -29,7 +29,8 @@ typedef struct {
   uint8_t* startFlags[N_MSG_PARTS];
   uint8_t startFlagsSize[N_MSG_PARTS];
   bool isCustomValidation[N_MSG_PARTS];
-  uint8_t localTemp; // a tempvariable used for each validation function
+  uint8_t nBytesInCurrentMsg; // the number of bytes in the currently underporcess message.
+  uint8_t nBytesInCurrentMsg_MAX;
   uint8_t nStartFlags;
   uint8_t nStartFlagread;
   validOutput (*validationFunction[N_MSG_PARTS])(uint8_t ,const uint8_t*,const uint8_t,Buffer*); // Array of function pointers
@@ -42,12 +43,13 @@ validOutput checkByte(Msg* msg);
 
 bool addValidation(Msg* msg, uint8_t* Flag, uint8_t FlagSize);
 bool addValidationFunction(Msg* msg, validOutput (*validationFunction)(uint8_t ,const uint8_t*,const uint8_t,Buffer*));
-bool addMsgHolder(Msg* msg, uint8_t maxMsgSize);
-
+State handleStateTransiiton(Msg* msg, validOutput output);
 void printMsgForm(Msg* msg);
 
 void processMsg(Msg* msg);
 bool checkPartN(Msg* msg, uint8_t byte, uint8_t N);
+bool setMsgSize(Msg* msg, uint8_t size);
+
 
 validOutput validateByte(uint8_t byte,const uint8_t* flag, const uint8_t flagSize, Buffer* buffer);
 

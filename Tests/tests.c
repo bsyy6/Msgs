@@ -17,12 +17,13 @@ Msg msg;
 
 uint8_t runTest_1(uint8_t* test, uint8_t sizeTest);
 uint8_t runTest_2(uint8_t* test, uint8_t sizeTest);
-validOutput myValidation(uint8_t byte ,uint8_t* t1,uint8_t t2);
-uint8_t dataPoint = 0xA;
+validOutput myValidation(uint8_t byte ,uint8_t* t1,uint8_t t2, Buffer* buffer);
 
 
 int main(){
-    runTest_2(test2,sizeof(test2)/sizeof(test2[0]));
+    // runTest_2(test2,sizeof(test2)/sizeof(test2[0]));
+
+    runTest_2(test1, sizeof(test1)/sizeof(test1[0]));
 }
 
 
@@ -46,8 +47,9 @@ uint8_t runTest_2(uint8_t* test, uint8_t sizeTest){
     uint8_t raw_buffer[20];
     Buffer b_buffer = initBuffer(raw_buffer,20);
     Msg msg = msg; // set a new message
+    
     initMsg(&msg, &b_buffer);
-
+    setMsgSize(&msg, 10);
     uint8_t startFlag[2] = {161,162};
     uint8_t endFlag[2] = {162,161};
     
@@ -62,7 +64,7 @@ uint8_t runTest_2(uint8_t* test, uint8_t sizeTest){
     return msg.raw_buffer->msgCount;
 }
 
-validOutput myValidation(uint8_t byte ,uint8_t* t1,uint8_t t2){
+validOutput myValidation(uint8_t byte ,uint8_t* t1,uint8_t t2, Buffer* buffer){
     static uint8_t prevByte = 0;    
     if(prevByte == 162){
         if(byte == 161){

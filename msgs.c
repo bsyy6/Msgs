@@ -5,6 +5,7 @@
 */
 
 #include "msgs.h"
+#include <stdint.h>
 
 
 void processMsg(Msg* msg){
@@ -18,48 +19,39 @@ void processMsg(Msg* msg){
     // it will copy the message to msgOut array and unfreeze the buffer to work as usual.
     // you can check if messages are available by checking buffer->msgCount.
 
-    
+    static uint8_t counterMsg = 0;
     if(msg->raw_buffer->isEmpty){
         return;
     }
     while(!msg->raw_buffer->isEmpty){
         deq(&msg->byte,msg->raw_buffer);
         validOutput output = checkByte(msg);
+        msg->state = handleStateTransiiton(msg,output);
 
         switch (msg->state){
             case START1:
                 if(output == OK_START_TRACKING){
                     if(!msg->raw_buffer->Blocked){
                         setMsgStart(msg->raw_buffer);
+                        msg->nBytesInCurrentMsg = 1;
                     }             
-                }else if(output == OK_move_to_next){ 
-                    msg->state = CONT;
-                }else if(output == NOT_OK_GO_TO_ERROR){
-                    msg->state = ERROR;
-                }
-                
-                break; 
-            case CONT:
-                if (output == OK_move_to_next){
-                    msg->state = END1;
-                }else if (output == NOT_OK_GO_TO_ERROR){
-                    msg->state = ERROR;
-                }
-                break;            
-            case END1:
-                if(output == OK_move_to_next){
-                    enqMsg(msg->raw_buffer);
-                    //reset msg->state to get next message
-                    msg->state = START1;
-                }else if(output == NOT_OK_GO_TO_ERROR){
-                    msg->state = ERROR;
                 }
                 break;
+
+            case CONT:
+                msg->nBytesInCurrentMsg++;
+                break;       
+
+            case END1:
+                enqMsg(msg->raw_buffer);
+                msg->state = START1;
+                
             case ERROR:
                 // do nothing
                 break;
         }
         
+
         // directly enforce error msg->state handling
         if(msg->state == ERROR){
             if(findNextMsgStart(msg->raw_buffer)){
@@ -77,6 +69,7 @@ void initMsg(Msg* msg, Buffer* raw_buffer){
     msg->state = START1;
     msg->nStartFlags = 0;
     msg->nStartFlagread = 0;
+    msg->nBytesInCurrentMsg_MAX = raw_buffer->arraySize/2;
 }
 
 bool addValidation(Msg* msg, uint8_t* startFlag, uint8_t startFlagSize){
@@ -104,14 +97,8 @@ validOutput checkByte(Msg* msg){
 
     if(output ==  OK_move_to_next){
         msg->nStartFlagread++;
-        if(msg->nStartFlagread == msg->nStartFlags){
-            msg->state = END1; // passed all validation functions!
-        }
     }
 
-    if(output == NOT_OK){
-        msg->state = ERROR;
-    }
     return output;
 
 }
@@ -150,23 +137,27 @@ bool addValidationFunction(Msg* msg, validOutput (*validationFunction)(uint8_t b
     return false;
 }
 
-validOutput addLastValidation(uint8_t byte,const uint8_t* flag, const uint8_t flagSize, Buffer* buffer){
-    validOutput output = OK;
-    static uint8_t idx = 0;
-
-    // correct flag
-    if(byte == flag[idx]){
-        output = (idx == 0) ? OK_START_TRACKING:OK;
-        idx++;
-    }else{
-        idx = 0;
-    }
+State handleStateTransiiton(Msg* msg, validOutput output){
+    State state = msg->state;
     
-    // all flag is ok
-    if(idx == flagSize){
-        idx = 0;
-        output = OK_move_to_next;
-    }
+    if(output == OK_move_to_next)
+        state++;
+    
+    if( output == NOT_OK_GO_TO_ERROR ||
+        msg->nBytesInCurrentMsg > msg->nBytesInCurrentMsg_MAX)
+        state = ERROR;
+    
+    if(msg->nStartFlagread == msg->nStartFlags)
+        state = END1; // passed all validation functions!
+    
+    return state;
+}
 
-    return output;
+bool setMsgSize(Msg* msg, uint8_t size){
+    if(size < msg->raw_buffer->arraySize){
+        msg->nBytesInCurrentMsg_MAX = size;
+        return true;
+    }else{
+        return false;
+    }
 }
