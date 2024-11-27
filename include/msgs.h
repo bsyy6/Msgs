@@ -33,7 +33,7 @@ typedef struct {
   uint8_t nBytesInCurrentMsg_MAX;
   uint8_t nStartFlags;
   uint8_t nStartFlagread;
-  validOutput (*validationFunction[N_MSG_PARTS])(uint8_t ,const uint8_t*,const uint8_t,Buffer*); // Array of function pointers
+  validOutput (*validationFunction[N_MSG_PARTS])(uint8_t , uint8_t*, uint8_t, volatile Buffer*); // Array of function pointers
   bool isValidationFunction[N_MSG_PARTS];
 }Msg;
 
@@ -42,7 +42,7 @@ void initMsg(Msg* msg, Buffer* raw_buffer);
 validOutput checkByte(Msg* msg);
 
 bool addValidation(Msg* msg, uint8_t* Flag, uint8_t FlagSize);
-bool addValidationFunction(Msg* msg, validOutput (*validationFunction)(uint8_t ,const uint8_t*,const uint8_t,Buffer*));
+bool addValidationFunction(Msg* msg, validOutput (*validationFunction)(uint8_t , uint8_t*, uint8_t,volatile Buffer*));
 State handleStateTransiiton(Msg* msg, validOutput output);
 void printMsgForm(Msg* msg);
 
@@ -51,18 +51,6 @@ bool checkPartN(Msg* msg, uint8_t byte, uint8_t N);
 bool setMsgSize(Msg* msg, uint8_t size);
 
 
-validOutput validateByte(uint8_t byte,const uint8_t* flag, const uint8_t flagSize, Buffer* buffer);
+validOutput validateByte(uint8_t byte, uint8_t* flag,  uint8_t flagSize,volatile Buffer* buffer);
 
 #endif // MSGS_H
-/*
-const uint8_t startFlag[] = "@WRIST:";
-const uint8_t endFlag[] = "*\r";
-
-
-const uint8_t startFlag_LastIdx = sizeof(startFlag) -2 ;
-const uint8_t endFlag_LastIdx = sizeof(endFlag) -2 ;
-const uint8_t MAX_MSG_SIZE = 15;
-
-static uint8_t inFlagIndex = 0;
-static uint8_t msgBytesLeft = 0;
-*/
