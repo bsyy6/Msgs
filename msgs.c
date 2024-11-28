@@ -5,7 +5,9 @@
 */
 
 #include "msgs.h"
+#include <stdbool.h>
 #include <stdint.h>
+#include <string.h>
 
 
 void processMsg(Msg* msg){
@@ -69,14 +71,16 @@ void initMsg(Msg* msg, Buffer* raw_buffer){
     msg->state = START1;
     msg->nStartFlags = 0;
     msg->nStartFlagread = 0;
+    msg->nBytesInCurrentMsg = 0;
     msg->nBytesInCurrentMsg_MAX = raw_buffer->arraySize/2;
 }
 
 bool addValidation(Msg* msg, uint8_t* startFlag, uint8_t startFlagSize){
     if(msg->nStartFlags < N_MSG_PARTS){
         
-        if( addValidationFunction(msg, validateByte)){;
-            
+        if( addValidationFunction(msg, validateByte, false)){
+            msg->startFlags[msg->nStartFlags-1] = startFlag;
+            msg->startFlagsSize[msg->nStartFlags-1] = startFlagSize;
             return true;
         }
     }
@@ -107,16 +111,21 @@ validOutput checkByte(Msg* msg){
 validOutput validateByte(uint8_t byte, uint8_t* flag,  uint8_t flagSize, volatile Buffer* buffer){
     static uint8_t idx = 0;
     validOutput output = OK;
-
-    // correct flag
-    if(byte == flag[idx] ){
-        output = (idx == 0) ? OK_START_TRACKING:OK;
-        idx++;
-    }else if (idx > 0){
-        idx = 0;
-        output = NOT_OK_GO_TO_ERROR;
-    }
     
+    // not poiting to any flag
+    if(flag == NULL){
+        idx++;
+        output = OK;
+    }else{
+        // pointing to a flag
+        if(byte == flag[idx] ){
+            output = (idx == 0) ? OK_START_TRACKING:OK;
+            idx++;
+        }else if (idx > 0){
+            idx = 0;
+            output = NOT_OK_GO_TO_ERROR;
+        }
+    }
     // all flag is ok
     if(idx == flagSize){
         idx = 0;
@@ -126,11 +135,15 @@ validOutput validateByte(uint8_t byte, uint8_t* flag,  uint8_t flagSize, volatil
     return output;
 }
 
+
 // TODO
-bool addValidationFunction(Msg* msg, validOutput (*validationFunction)(uint8_t byte,  uint8_t* flag, uint8_t flagSize, volatile Buffer* buffer)){
+bool addValidationFunction(Msg* msg, validOutput (*validationFunction)(uint8_t byte,  uint8_t* flag, uint8_t flagSize, volatile Buffer* buffer), bool isCustom){
     if(msg->nStartFlags < N_MSG_PARTS){
         msg->validationFunction[msg->nStartFlags] = validationFunction;
-        msg->isCustomValidation[msg->nStartFlags] = true;
+        msg->isCustomValidation[msg->nStartFlags] = isCustom;
+        msg->startFlags[msg->nStartFlags] = NULL;
+        msg->startFlagsSize[msg->nStartFlags] = 0;
+        msg->nStartFlags++;
         return true;
     }
     return false;
@@ -138,9 +151,11 @@ bool addValidationFunction(Msg* msg, validOutput (*validationFunction)(uint8_t b
 
 State handleStateTransiiton(Msg* msg, validOutput output){
     State state = msg->state;
-    
+    if(output == OK_START_TRACKING )
+        state = state;
+
     if(output == OK_move_to_next)
-        state++;
+        state = CONT;
     
     if( output == NOT_OK_GO_TO_ERROR ||
         msg->nBytesInCurrentMsg > msg->nBytesInCurrentMsg_MAX)
@@ -152,6 +167,7 @@ State handleStateTransiiton(Msg* msg, validOutput output){
     return state;
 }
 
+
 bool setMsgSize(Msg* msg, uint8_t size){
     if(size < msg->raw_buffer->arraySize){
         msg->nBytesInCurrentMsg_MAX = size;
@@ -160,3 +176,4 @@ bool setMsgSize(Msg* msg, uint8_t size){
         return false;
     }
 }
+

@@ -34,7 +34,6 @@ typedef struct {
   uint8_t nStartFlags;
   uint8_t nStartFlagread;
   validOutput (*validationFunction[N_MSG_PARTS])(uint8_t , uint8_t*, uint8_t, volatile Buffer*); // Array of function pointers
-  bool isValidationFunction[N_MSG_PARTS];
 }Msg;
 
 
@@ -42,7 +41,7 @@ void initMsg(Msg* msg, Buffer* raw_buffer);
 validOutput checkByte(Msg* msg);
 
 bool addValidation(Msg* msg, uint8_t* Flag, uint8_t FlagSize);
-bool addValidationFunction(Msg* msg, validOutput (*validationFunction)(uint8_t , uint8_t*, uint8_t,volatile Buffer*));
+bool addValidationFunction(Msg* msg, validOutput (*validationFunction)(uint8_t , uint8_t*, uint8_t,volatile Buffer*),bool isCustomValidation);
 State handleStateTransiiton(Msg* msg, validOutput output);
 void printMsgForm(Msg* msg);
 
