@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
@@ -8,9 +9,17 @@
 // test strings
 uint8_t nTests = 2;
 
-const uint8_t test1[6] = {161, 162, 6, 5, 162, 161}; // correct checksum at 5
+// simple start flag - end flag no checks in between
+const uint8_t test1[6] = {161, 162, 6, 2, 162, 161}; // correct checksum at 5
 
-const uint8_t test2[6] = {161, 162, 6, 2, 162, 161};
+// simple start flag - end flag  5 is checksum of 161-162-6 
+const uint8_t test2[6] = {161, 162, 6,  5, 162, 161};
+
+// start flags - size of Payload {MSB-LSB} - checksum
+const uint8_t test3[6] = {161, 162, 0, 1, 6, 4}; // correct checksum at 5
+
+// start flags - size of Payload - checksum - end flags
+const uint8_t test4[8] = {161, 162, 0, 1, 6, 4, 162, 161}; // correct checksum at 5
 
 uint8_t raw_buffer[20];
 uint8_t msgData[10];
@@ -21,12 +30,15 @@ uint8_t runTest_2(uint8_t* test, uint8_t sizeTest);
 uint8_t runTest_3(uint8_t* test, uint8_t sizeTest);
 
 
-// custom validation function
-validOutput checksum(uint8_t byte ,uint8_t* t1,uint8_t t2, volatile Buffer* buffer);
+// custom validation functions
+ValidationFunction setsSizeOfMsg;
+ValidationFunction checksum;
+
+
 
 
 int main(){
-    runTest_2(test2,sizeof(test2)/sizeof(test2[0]));
+    runTest_2(test3,sizeof(test3)/sizeof(test3[0]));
 
     // runTest_3(test1, sizeof(test1)/sizeof(test1[0]));
 }
@@ -82,9 +94,10 @@ uint8_t runTest_3(uint8_t* test, uint8_t sizeTest){
     uint8_t endFlag[2] = {162,161};
     
     addValidation(&msg, startFlag, 2);
-    addValidation(&msg, NULL, 1);
+    addValidationFunction(&msg, setsSizeOfMsg, true);
+    addValidation(&msg, NULL, 0);
     addValidationFunction(&msg, checksum, true);
-    addValidation(&msg, endFlag, 2);
+    // addValidation(&msg, endFlag, 2);
 
     for (int i = 0; i < sizeTest; i++){
         enq(&test[i],&b_buffer);
@@ -95,7 +108,11 @@ uint8_t runTest_3(uint8_t* test, uint8_t sizeTest){
 }
 
 // todo , no all data in buffer only what is needed!
-validOutput checksum(uint8_t byte ,uint8_t* t1,uint8_t t2,volatile Buffer* buffer){
+validOutput checksum(Msg* msg){
+    /* for readability */
+    uint8_t byte = msg->byte;
+    Buffer* buffer = msg->raw_buffer;
+
     jumpToMsgStart(buffer);
     uint8_t dataInBuffer =howMuchData(buffer); 
     if(dataInBuffer == 0){
@@ -113,7 +130,10 @@ validOutput checksum(uint8_t byte ,uint8_t* t1,uint8_t t2,volatile Buffer* buffe
     return (cs == b) ? OK_move_to_next:NOT_OK_GO_TO_ERROR;
 }
 
-validOutput setsSizeOfMsg(uint8_t byte ,uint8_t* t1,uint8_t t2,volatile Buffer* buffer){
+validOutput setsSizeOfMsg(Msg* msg){
+    /* for readability */
+    uint8_t byte = msg->byte;
+
     static uint16_t size = 0;
     static uint8_t idx = 0;
     if(idx == 0){
@@ -124,7 +144,7 @@ validOutput setsSizeOfMsg(uint8_t byte ,uint8_t* t1,uint8_t t2,volatile Buffer* 
     if(idx == 1){
         size = size << 8;
         size |= byte;
-        t2 = (uint8_t)size&0xFF;
+        msg->startFlagsSize[msg->nStartFlagread] = (uint8_t)size&0xFF;
         return OK_move_to_next;
     }
 }

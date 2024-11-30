@@ -92,9 +92,9 @@ validOutput checkByte(Msg* msg){
 
     // run the validation funciton
     if(msg->isCustomValidation[msg->nStartFlagread]){
-       output = msg->validationFunction[msg->nStartFlagread](msg->byte,msg->startFlags[msg->nStartFlagread],msg->startFlagsSize[msg->nStartFlagread], msg->raw_buffer);
+       output = msg->validationFunctions[msg->nStartFlagread](msg);
     }else{
-        output = validateByte(msg->byte, msg->startFlags[msg->nStartFlagread],msg->startFlagsSize[msg->nStartFlagread],msg->raw_buffer);
+        output = validateByte(msg);
     }
 
     if(output ==  OK_move_to_next){
@@ -108,10 +108,14 @@ validOutput checkByte(Msg* msg){
 /** @brief default validation function, goes through flag array and returns ok_move_to_next validation if 
 * if the flag was found in the byte sequences.
  */
-validOutput validateByte(uint8_t byte, uint8_t* flag,  uint8_t flagSize, volatile Buffer* buffer){
+validOutput validateByte(struct Msg* msg){
     static uint8_t idx = 0;
     validOutput output = OK;
-    
+    /* for easier reading */
+    uint8_t byte = msg->byte;
+    uint8_t* flag = msg->startFlags[msg->nStartFlagread];
+    uint8_t flagSize = msg->startFlagsSize[msg->nStartFlagread];
+
     // not poiting to any flag
     if(flag == NULL){
         idx++;
@@ -137,9 +141,9 @@ validOutput validateByte(uint8_t byte, uint8_t* flag,  uint8_t flagSize, volatil
 
 
 // TODO
-bool addValidationFunction(Msg* msg, validOutput (*validationFunction)(uint8_t byte,  uint8_t* flag, uint8_t flagSize, volatile Buffer* buffer), bool isCustom){
+bool addValidationFunction(Msg* msg, validOutput (*validationFunction)(Msg* msg), bool isCustom){
     if(msg->nStartFlags < N_MSG_PARTS){
-        msg->validationFunction[msg->nStartFlags] = validationFunction;
+        msg->validationFunctions[msg->nStartFlags] = validationFunction;
         msg->isCustomValidation[msg->nStartFlags] = isCustom;
         msg->startFlags[msg->nStartFlags] = NULL;
         msg->startFlagsSize[msg->nStartFlags] = 0;
