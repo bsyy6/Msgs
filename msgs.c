@@ -77,7 +77,6 @@ void initMsg(Msg* msg, Buffer* raw_buffer){
 
 bool addValidation(Msg* msg, uint8_t* startFlag, uint8_t startFlagSize){
     if(msg->nStartFlags < N_MSG_PARTS){
-        
         if( addValidationFunction(msg, validateByte, false)){
             msg->startFlags[msg->nStartFlags-1] = startFlag;
             msg->startFlagsSize[msg->nStartFlags-1] = startFlagSize;
@@ -118,12 +117,12 @@ validOutput validateByte(struct Msg* msg){
 
     // not poiting to any flag
     if(flag == NULL){
+        output = (idx==0 && msg->nStartFlagread == 0) ? OK_START_TRACKING:OK;
         idx++;
-        output = OK;
     }else{
         // pointing to a flag
         if(byte == flag[idx] ){
-            output = (idx == 0) ? OK_START_TRACKING:OK;
+            output = (idx==0 && msg->nStartFlagread == 0) ? OK_START_TRACKING:OK;
             idx++;
         }else if (idx > 0){
             idx = 0;
@@ -171,7 +170,13 @@ State handleStateTransiiton(Msg* msg, validOutput output){
     return state;
 }
 
-
+/**
+ * @brief Set the Msg Size object
+ * 
+ * @param msg pointer to Msg structure
+ * @param size the maximum expected message size
+ * @return true  if the size is set, false otherwise.
+ */
 bool setMsgSize(Msg* msg, uint8_t size){
     if(size < msg->raw_buffer->arraySize){
         msg->nBytesInCurrentMsg_MAX = size;

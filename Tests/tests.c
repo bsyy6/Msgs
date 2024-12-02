@@ -1,4 +1,5 @@
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
@@ -21,6 +22,11 @@ const uint8_t test3[6] = {161, 162, 0, 1, 6, 4}; // correct checksum at 5
 // start flags - size of Payload - checksum - end flags
 const uint8_t test4[8] = {161, 162, 0, 1, 6, 4, 162, 161}; // correct checksum at 5
 
+// start flags MIA style 
+const uint8_t testMia[9] = {'E','M','G',':', 9, 8, 7, 6, '\n'};
+
+const uint8_t testMia2[9] = {'A','D','C',':', 3, 3, 3, 4, '\n'};
+
 uint8_t raw_buffer[20];
 uint8_t msgData[10];
 Msg msg;
@@ -28,7 +34,7 @@ Msg msg;
 uint8_t runTest_1(uint8_t* test, uint8_t sizeTest);
 uint8_t runTest_2(uint8_t* test, uint8_t sizeTest);
 uint8_t runTest_3(uint8_t* test, uint8_t sizeTest);
-
+uint8_t runTest_4_MIA(uint8_t* test, uint8_t sizeTest);
 
 // custom validation functions
 ValidationFunction setsSizeOfMsg;
@@ -38,8 +44,8 @@ ValidationFunction checksum;
 
 
 int main(){
-    runTest_2(test3,sizeof(test3)/sizeof(test3[0]));
-
+    // runTest_3(test3,sizeof(test3)/sizeof(test3[0]));
+    runTest_4_MIA(testMia,sizeof(testMia)/sizeof(testMia[0]));
     // runTest_3(test1, sizeof(test1)/sizeof(test1[0]));
 }
 
@@ -107,7 +113,7 @@ uint8_t runTest_3(uint8_t* test, uint8_t sizeTest){
     return msg.raw_buffer->msgCount;
 }
 
-// todo , no all data in buffer only what is needed!
+
 validOutput checksum(Msg* msg){
     /* for readability */
     uint8_t byte = msg->byte;
@@ -144,8 +150,32 @@ validOutput setsSizeOfMsg(Msg* msg){
     if(idx == 1){
         size = size << 8;
         size |= byte;
-        msg->startFlagsSize[msg->nStartFlagread] = (uint8_t)size&0xFF;
+        msg->startFlagsSize[2] = (uint8_t)size&0xFF; // 2 is the payload part of message
         return OK_move_to_next;
     }
 }
 
+
+uint8_t runTest_4_MIA(uint8_t* test, uint8_t sizeTest){
+    // loads the data one byte at a time and processes it
+    // adds some sum function to check it is correct!
+    uint8_t raw_buffer[20];
+    Buffer b_buffer = initBuffer(raw_buffer,20);
+    Msg msg = msg; // set a new message
+    
+    initMsg(&msg, &b_buffer);
+    setMsgSize(&msg, 10);
+    uint8_t startFlag = ':';
+    uint8_t endFlag = '\n'; // LF
+    
+    addValidation(&msg, NULL, 4);
+    addValidation(&msg, &startFlag, 1);
+    addValidation(&msg, &endFlag, 1);
+
+    for (int i = 0; i < sizeTest; i++){
+        enq(&test[i],&b_buffer);
+        processMsg(&msg);   
+    }
+
+    return msg.raw_buffer->msgCount;
+}
